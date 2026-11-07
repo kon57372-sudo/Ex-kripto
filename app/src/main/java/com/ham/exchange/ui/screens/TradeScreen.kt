@@ -37,14 +37,16 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase) {
         }
         OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount (coins)") })
         Button(onClick = {
-            val coin = coins.firstOrNull { it.id == selected } ?: return@Button
-            val amt = amount.toDoubleOrNull() ?: return@Button
+            val coin = coins.firstOrNull { it.id == selected }
+            if (coin == null) { android.widget.Toast.makeText(context, "Pilih koin dulu", android.widget.Toast.LENGTH_SHORT).show(); return@Button }
+            val amt = amount.toDoubleOrNull()
+            if (amt == null || amt <= 0) { android.widget.Toast.makeText(context, "Jumlah tidak valid", android.widget.Toast.LENGTH_SHORT).show(); return@Button }
             scope.launch {
                 val price = coin.currentPrice
                 val cost = price * amt
                 val balance = prefs.getFloat("balance", 100000000000f).toDouble()
                 if (side == "BUY") {
-                    if (balance < cost) return@launch
+                    if (balance < cost) { android.widget.Toast.makeText(context, "Saldo Tidak Cukup", android.widget.Toast.LENGTH_SHORT).show(); return@launch }
                     prefs.edit().putFloat("balance", (balance - cost).toFloat()).apply()
                     val existingList = db.holdings().all().firstOrNull() ?: emptyList()
                     val existing = existingList.firstOrNull { it.coinId == coin.id }
@@ -59,6 +61,7 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase) {
                     prefs.edit().putFloat("balance", (balance + cost).toFloat()).apply()
                 }
                 db.orders().insert(OrderEntity(coinId = coin.id, symbol = coin.symbol, side = side, type = "MARKET", price = price, amount = amt, status = "FILLED", timestamp = System.currentTimeMillis()))
+                android.widget.Toast.makeText(context, if (side == "BUY") "Pembelian Berhasil" else "Penjualan Berhasil", android.widget.Toast.LENGTH_SHORT).show()
             }
         }, modifier = Modifier.fillMaxWidth()) { Text("$side Market Order") }
     }
