@@ -15,7 +15,7 @@ class MarketViewModel(private val repo: MarketRepository) : ViewModel() {
         refresh()
         viewModelScope.launch {
             while (true) {
-                kotlinx.coroutines.delay(10000)
+                kotlinx.coroutines.delay(5000)
                 try { repo.refresh(300) } catch (_: Exception) { }
             }
         }

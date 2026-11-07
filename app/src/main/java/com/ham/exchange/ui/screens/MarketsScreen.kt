@@ -34,6 +34,7 @@ fun MarketsScreen(vm: MarketViewModel) {
 @Composable
 fun CoinRow(c: Coin) {
     val nf = NumberFormat.getCurrencyInstance(Locale.US)
+    Card(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp)) {
     Row(Modifier.fillMaxWidth().padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         AsyncImage(model = c.image, contentDescription = c.name, modifier = Modifier.size(32.dp))
         Column(Modifier.weight(1f)) {
@@ -45,5 +46,6 @@ fun CoinRow(c: Coin) {
             val ch = c.priceChangePercentage24h ?: 0.0
             Text("${"%.2f".format(ch)}%", color = if (ch >= 0) androidx.compose.ui.graphics.Color(0xFF00C853) else androidx.compose.ui.graphics.Color(0xFFFF1744))
         }
+    }
     }
 }
