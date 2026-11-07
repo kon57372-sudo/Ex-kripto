@@ -17,6 +17,7 @@ fun App() {
     val vm: MarketViewModel = viewModel { MarketViewModel(repo) }
     var tab by remember { mutableStateOf(0) }
     val tabs = listOf("Markets", "Trade", "Wallet", "Portfolio")
+    MaterialTheme(colorScheme = darkColorScheme()) {
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -36,5 +37,6 @@ fun App() {
                 3 -> PortfolioScreen()
             }
         }
+    }
     }
 }
