@@ -94,12 +94,32 @@ fun PortfolioScreen(db: HamDatabase) {
     val ordersState = db.orders().all().collectAsState(initial = emptyList())
     val holdings = holdingsState.value
     val orders = ordersState.value
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
+    val total = holdings.sumOf { it.amount * it.avgBuyPrice }
+    Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Portfolio", style = MaterialTheme.typography.titleLarge)
-        Text("Holdings: ${holdings.size}")
-        holdings.forEach { h -> Text("${h.symbol}: ${h.amount} @ ${h.avgBuyPrice}") }
-        Spacer(Modifier.height(12.dp))
+        Card(Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Total Est. Value (USDT)")
+                Text("US$${"%.2f".format(total)}", style = MaterialTheme.typography.headlineMedium)
+            }
+        }
+        Text("Holdings")
+        holdings.forEach { h ->
+            Card(Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                    Text(h.symbol, style = MaterialTheme.typography.titleMedium)
+                    Text("${h.amount} @ ${"%.2f".format(h.avgBuyPrice)}")
+                }
+            }
+        }
+        Spacer(Modifier.height(8.dp))
         Text("Recent Orders")
-        orders.take(20).forEach { o -> Text("${o.side} ${o.symbol} ${o.amount} @ ${o.price}") }
+        orders.take(20).forEach { o ->
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("${o.side} ${o.symbol}", color = if (o.side == "BUY") Color(0xFF00C853) else Color(0xFFFF1744))
+                Text("${o.amount} @ ${"%.2f".format(o.price)}")
+            }
+            HorizontalDivider()
+        }
     }
 }
