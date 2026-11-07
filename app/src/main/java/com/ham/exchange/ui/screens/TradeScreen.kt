@@ -1,8 +1,11 @@
 package com.ham.exchange.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,12 +19,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.firstOrNull
 
 @Composable
-fun TradeScreen(vm: MarketViewModel, db: HamDatabase) {
+fun TradeScreen(vm: MarketViewModel, db: HamDatabase, selectedCoinId: String? = null, onSelectedChange: (String?) -> Unit = {}) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("ham", android.content.Context.MODE_PRIVATE) }
     val coinsState = vm.coins.collectAsState()
     val coins = coinsState.value
-    var selected by remember { mutableStateOf<String?>(null) }
+    var selected by remember { mutableStateOf<String?>(selectedCoinId) }
+    LaunchedEffect(selectedCoinId) { selected = selectedCoinId }
     var side by remember { mutableStateOf("BUY") }
     var price by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
@@ -29,9 +33,9 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase) {
     val coin = coins.firstOrNull { it.id == selected }
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Trade", style = MaterialTheme.typography.titleLarge)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            coins.take(6).forEach { c ->
-                FilterChip(selected = selected == c.id, onClick = { selected = c.id }, label = { Text(c.symbol) })
+        androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(coins) { c ->
+                FilterChip(selected = selected == c.id, onClick = { selected = c.id; onSelectedChange(c.id) }, label = { Text(c.symbol) })
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -18,6 +18,7 @@ fun App() {
     val repo = remember { MarketRepository() }
     val vm: MarketViewModel = viewModel { MarketViewModel(repo) }
     var tab by remember { mutableStateOf(0) }
+    var selectedCoin by remember { mutableStateOf<String?>(null) }
     val tabs = listOf("Markets", "Trade", "Wallet", "Portfolio")
     MaterialTheme(colorScheme = darkColorScheme()) {
     Scaffold(
@@ -33,8 +34,8 @@ fun App() {
     ) { p ->
         Box(Modifier.padding(p)) {
             when (tab) {
-                0 -> MarketsScreen(vm)
-                1 -> TradeScreen(vm, db)
+                0 -> MarketsScreen(vm) { id -> selectedCoin = id; tab = 1 }
+                1 -> TradeScreen(vm, db, selectedCoin) { selectedCoin = it }
                 2 -> WalletScreen(db)
                 3 -> PortfolioScreen(db)
             }
