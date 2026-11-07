@@ -1,17 +1,18 @@
 package com.ham.exchange.data.db
 
 import androidx.room.*
+import java.math.BigDecimal
 import com.ham.exchange.data.model.*
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "holdings")
-data class HoldingEntity(@PrimaryKey val coinId: String, val symbol: String, val amount: Double, val avgBuyPrice: Double)
+data class HoldingEntity(@PrimaryKey val coinId: String, val symbol: String, val amount: BigDecimal, val avgBuyPrice: BigDecimal)
 
 @Entity(tableName = "orders")
 data class OrderEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val coinId: String, val symbol: String, val side: String, val type: String,
-    val price: Double, val amount: Double, val status: String, val timestamp: Long
+    val price: BigDecimal, val amount: BigDecimal, val status: String, val timestamp: Long
 )
 
 @Entity(tableName = "watchlist")
@@ -39,6 +40,7 @@ interface WatchlistDao {
 }
 
 @Database(entities = [HoldingEntity::class, OrderEntity::class, WatchlistEntity::class], version = 1)
+@TypeConverters(Converters::class)
 abstract class HamDatabase : RoomDatabase() {
     abstract fun holdings(): HoldingDao
     abstract fun orders(): OrderDao

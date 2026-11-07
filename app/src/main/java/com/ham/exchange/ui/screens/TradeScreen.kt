@@ -1,11 +1,8 @@
 package com.ham.exchange.ui.screens
 
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -17,6 +14,9 @@ import com.ham.exchange.data.db.OrderEntity
 import com.ham.exchange.ui.MarketViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.firstOrNull
+import java.math.BigDecimal
+import java.text.NumberFormat
+import java.util.Locale
 
 @Composable
 fun TradeScreen(vm: MarketViewModel, db: HamDatabase, selectedCoinId: String? = null, onSelectedChange: (String?) -> Unit = {}) {
@@ -31,6 +31,7 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase, selectedCoinId: String? = 
     var amount by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
     val coin = coins.firstOrNull { it.id == selected }
+    val nf = NumberFormat.getInstance(Locale.US)
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Trade", style = MaterialTheme.typography.titleLarge)
         androidx.compose.foundation.lazy.LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -46,26 +47,27 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase, selectedCoinId: String? = 
         OutlinedTextField(value = amount, onValueChange = { amount = it }, label = { Text("Amount") }, modifier = Modifier.fillMaxWidth())
         Button(onClick = {
             val c = coin ?: run { android.widget.Toast.makeText(context, "Pilih koin dulu", android.widget.Toast.LENGTH_SHORT).show(); return@Button }
-            val p = price.toDoubleOrNull() ?: c.currentPrice
-            val amt = amount.toDoubleOrNull()
-            if (amt == null || amt <= 0) { android.widget.Toast.makeText(context, "Jumlah tidak valid", android.widget.Toast.LENGTH_SHORT).show(); return@Button }
+            val p = price.toBigDecimalOrNull() ?: BigDecimal(c.currentPrice.toString())
+            val amt = amount.toBigDecimalOrNull()
+            if (amt == null || amt <= BigDecimal.ZERO) { android.widget.Toast.makeText(context, "Jumlah tidak valid", android.widget.Toast.LENGTH_SHORT).show(); return@Button }
             scope.launch {
-                val cost = p * amt
-                val balance = prefs.getFloat("balance", 100000000000f).toDouble()
+                val cost = p.multiply(amt)
+                val balanceStr = prefs.getString("balance", "100000000000") ?: "100000000000"
+                val balance = BigDecimal(balanceStr)
                 if (side == "BUY") {
                     if (balance < cost) { android.widget.Toast.makeText(context, "Saldo Tidak Cukup", android.widget.Toast.LENGTH_SHORT).show(); return@launch }
-                    prefs.edit().putFloat("balance", (balance - cost).toFloat()).apply()
+                    prefs.edit().putString("balance", balance.subtract(cost).toPlainString()).apply()
                     val existingList = db.holdings().all().firstOrNull() ?: emptyList()
                     val existing = existingList.firstOrNull { it.coinId == c.id }
-                    val newAmount = (existing?.amount ?: 0.0) + amt
+                    val newAmount = (existing?.amount ?: BigDecimal.ZERO) + amt
                     db.holdings().upsert(HoldingEntity(c.id, c.symbol, newAmount, p))
                 } else {
                     val existingList = db.holdings().all().firstOrNull() ?: emptyList()
                     val existing = existingList.firstOrNull { it.coinId == c.id } ?: run { android.widget.Toast.makeText(context, "Tidak ada holding", android.widget.Toast.LENGTH_SHORT).show(); return@launch }
                     if (existing.amount < amt) { android.widget.Toast.makeText(context, "Saldo Tidak Cukup", android.widget.Toast.LENGTH_SHORT).show(); return@launch }
-                    val newAmount = existing.amount - amt
-                    if (newAmount <= 0.0) db.holdings().delete(c.id) else db.holdings().upsert(HoldingEntity(c.id, c.symbol, newAmount, existing.avgBuyPrice))
-                    prefs.edit().putFloat("balance", (balance + cost).toFloat()).apply()
+                    val newAmount = existing.amount.subtract(amt)
+                    if (newAmount.compareTo(BigDecimal.ZERO) <= 0) db.holdings().delete(c.id) else db.holdings().upsert(HoldingEntity(c.id, c.symbol, newAmount, existing.avgBuyPrice))
+                    prefs.edit().putString("balance", balance.add(cost).toPlainString()).apply()
                 }
                 db.orders().insert(OrderEntity(coinId = c.id, symbol = c.symbol, side = side, type = "MARKET", price = p, amount = amt, status = "FILLED", timestamp = System.currentTimeMillis()))
                 android.widget.Toast.makeText(context, if (side == "BUY") "Pembelian Berhasil" else "Penjualan Berhasil", android.widget.Toast.LENGTH_SHORT).show()
@@ -80,13 +82,14 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase, selectedCoinId: String? = 
 fun WalletScreen(db: HamDatabase) {
     val context = LocalContext.current
     val prefs = remember { context.getSharedPreferences("ham", android.content.Context.MODE_PRIVATE) }
-    val balance = prefs.getFloat("balance", 100000000000f)
+    val balance = prefs.getString("balance", "100000000000") ?: "100000000000"
+    val nf = NumberFormat.getInstance(Locale.US)
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Text("Wallet", style = MaterialTheme.typography.titleLarge)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("Internal Balance")
-                Text("US$${"%.2f".format(balance)}", style = MaterialTheme.typography.headlineMedium)
+                Text("US$${nf.format(BigDecimal(balance))}", style = MaterialTheme.typography.headlineMedium)
             }
         }
     }
@@ -98,13 +101,14 @@ fun PortfolioScreen(db: HamDatabase) {
     val ordersState = db.orders().all().collectAsState(initial = emptyList())
     val holdings = holdingsState.value
     val orders = ordersState.value
-    val total = holdings.sumOf { it.amount * it.avgBuyPrice }
+    val total = holdings.fold(BigDecimal.ZERO) { acc, h -> acc.add(h.amount.multiply(h.avgBuyPrice)) }
+    val nf = NumberFormat.getInstance(Locale.US)
     Column(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text("Portfolio", style = MaterialTheme.typography.titleLarge)
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp)) {
                 Text("Total Est. Value (USDT)")
-                Text("US$${"%.2f".format(total)}", style = MaterialTheme.typography.headlineMedium)
+                Text("US$${nf.format(total)}", style = MaterialTheme.typography.headlineMedium)
             }
         }
         Text("Holdings")
@@ -112,7 +116,7 @@ fun PortfolioScreen(db: HamDatabase) {
             Card(Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(h.symbol, style = MaterialTheme.typography.titleMedium)
-                    Text("${h.amount} @ ${"%.2f".format(h.avgBuyPrice)}")
+                    Text("${nf.format(h.amount)} @ ${nf.format(h.avgBuyPrice)}")
                 }
             }
         }
@@ -121,7 +125,7 @@ fun PortfolioScreen(db: HamDatabase) {
         orders.take(20).forEach { o ->
             Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text("${o.side} ${o.symbol}", color = if (o.side == "BUY") Color(0xFF00C853) else Color(0xFFFF1744))
-                Text("${o.amount} @ ${"%.2f".format(o.price)}")
+                Text("${nf.format(o.amount)} @ ${nf.format(o.price)}")
             }
             HorizontalDivider()
         }
