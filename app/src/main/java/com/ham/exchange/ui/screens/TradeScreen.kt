@@ -59,7 +59,7 @@ fun TradeScreen(vm: MarketViewModel, db: HamDatabase, selectedCoinId: String? = 
                     prefs.edit().putString("balance", balance.subtract(cost).toPlainString()).apply()
                     val existingList = db.holdings().all().firstOrNull() ?: emptyList()
                     val existing = existingList.firstOrNull { it.coinId == c.id }
-                    val newAmount = (existing?.amount ?: BigDecimal.ZERO) + amt
+                    val newAmount = (existing?.amount ?: BigDecimal.ZERO).add(amt)
                     db.holdings().upsert(HoldingEntity(c.id, c.symbol, newAmount, p))
                 } else {
                     val existingList = db.holdings().all().firstOrNull() ?: emptyList()
