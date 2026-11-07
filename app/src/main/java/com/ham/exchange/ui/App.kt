@@ -13,6 +13,8 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun App() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val db = remember { androidx.room.Room.databaseBuilder(context, com.ham.exchange.data.db.HamDatabase::class.java, "ham.db").fallbackToDestructiveMigration().build() }
     val repo = remember { MarketRepository() }
     val vm: MarketViewModel = viewModel { MarketViewModel(repo) }
     var tab by remember { mutableStateOf(0) }
@@ -32,9 +34,9 @@ fun App() {
         Box(Modifier.padding(p)) {
             when (tab) {
                 0 -> MarketsScreen(vm)
-                1 -> TradeScreen(vm)
-                2 -> WalletScreen()
-                3 -> PortfolioScreen()
+                1 -> TradeScreen(vm, db)
+                2 -> WalletScreen(db)
+                3 -> PortfolioScreen(db)
             }
         }
     }
